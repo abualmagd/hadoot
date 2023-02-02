@@ -95,6 +95,7 @@ class _RecordPageState extends State<RecordPage> {
                 child: Container(
                   height: 215,
                   width: 215,
+
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(colors: [
