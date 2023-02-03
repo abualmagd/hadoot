@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:record/record.dart';
+import 'package:rxdart/rxdart.dart';
 
 class RecordPage extends StatefulWidget {
   const RecordPage({Key? key}) : super(key: key);
@@ -14,12 +17,19 @@ class _RecordPageState extends State<RecordPage> {
   String elapsedTime="00:00:00";
   Timer? timer;
   late Record recorder;
-
   StreamSubscription<RecordState>? recordSub;
   RecordState recordState = RecordState.stop;
   StreamSubscription? _recorderSubscription;
   Stopwatch stopwatch = Stopwatch();
+  final player=AudioPlayer();
 
+  Stream<PositionData> get _positionDataStream =>
+      Rx.combineLatest3<Duration, Duration, Duration?, PositionData>(
+          player.positionStream,
+          player.bufferedPositionStream,
+          player.durationStream,
+              (position, bufferedPosition, duration) => PositionData(
+              position, bufferedPosition, duration ?? Duration.zero));
   @override
   void initState() {
     recorder = Record();
@@ -138,11 +148,38 @@ class _RecordPageState extends State<RecordPage> {
             child: Text(elapsedTime),
           ),
 
-          recordState == RecordState.record ? Container(
-            color: Colors.yellow,
-            height: 50,
-            width: 50,
-          ) : const SizedBox.shrink(),
+          recordState == RecordState.stop? StreamBuilder<PositionData>(
+                  stream: _positionDataStream,
+                        builder: (context, snapshot) {
+                        final positionData = snapshot.data;
+                        final progress = positionData?.position ?? Duration.zero;
+                        final buffered = positionData?.bufferedPosition ?? Duration.zero;
+                        final total = positionData?.duration ?? Duration.zero;
+                      return Column(
+                        children: [
+                          IconButton(onPressed: (){
+                            if(player.playing){
+                              player.stop();
+                            }else{
+                              player.play();
+                            }
+
+                          }, icon:player.playing? const Icon(Icons.pause_circle_filled):const Icon( Icons.play_circle_filled)),
+                          SizedBox(
+                            width: 250,
+                            child: ProgressBar(
+                            progress: progress,
+                            buffered: buffered,
+                            total: total,
+                            onSeek: (duration) {
+                            player.seek(duration);
+                            },
+                            ),
+                          ),
+                        ],
+                      );
+                      },
+    ): const SizedBox.shrink(),
 
           const SizedBox(
             height: 20,
@@ -182,6 +219,7 @@ class _RecordPageState extends State<RecordPage> {
     String? anURL = await recorder.stop();
     print("path :  ");
     print(anURL);
+    await player.setFilePath(anURL!);
     timer!.cancel();
     if (_recorderSubscription != null) {
       _recorderSubscription!.cancel();
@@ -229,6 +267,23 @@ class _RecordPageState extends State<RecordPage> {
     timer!.cancel();
     stopwatch.reset();
     recordSub!.cancel();
+    player.dispose();
     super.dispose();
   }
+}
+
+class PositionData {
+  const PositionData(this.position, this.bufferedPosition, this.duration);
+  final  Duration position;
+  final Duration bufferedPosition;
+  final Duration duration;
+
+}
+
+
+class DurationState {
+  const DurationState({required this.progress, required this.buffered, required this.total});
+  final Duration progress;
+  final Duration buffered;
+  final Duration total;
 }

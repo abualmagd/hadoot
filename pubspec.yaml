@@ -40,6 +40,9 @@ dependencies:
   google_fonts: ^3.0.1
   arabic_numbers: ^1.0.0
   record: ^4.4.4
+  just_audio: ^0.9.31
+  audio_video_progress_bar: ^0.11.0
+  rxdart: ^0.27.7
 
 
 dev_dependencies:
